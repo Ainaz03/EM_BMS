@@ -1,13 +1,12 @@
-version: "3.8"
-
+# docker-compose.yml
 services:
   app:
     build: .
     container_name: app
-    command: ./init_db.sh
+    # Наследуем CMD из Dockerfile, поэтому command не нужен
+    # command: sh /app/init_db.sh
     volumes:
-      - ./app:/app
-      - ./init_db.sh:/app/init_db.sh
+      - .:/app          # смонтирует весь проект, но файл уже в образе
     env_file:
       - .env
     ports:
@@ -23,10 +22,12 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-    ports:
-      - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+
 
   redis:
     image: redis:7

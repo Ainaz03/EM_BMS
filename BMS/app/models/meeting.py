@@ -4,7 +4,7 @@ from sqlalchemy import DateTime, Integer, String, ForeignKey
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 
 from app.core.database import Base
-from app.models.user import User, meeting_participants_association
+from app.models.user import meeting_participants_association
 
 
 # --- Основная модель ---

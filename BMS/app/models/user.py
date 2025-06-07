@@ -5,9 +5,6 @@ from sqlalchemy.orm import relationship, Mapped, mapped_column
 from fastapi_users_db_sqlalchemy import SQLAlchemyBaseUserTable
 
 from app.core.database import Base
-from app.models.task import Task
-from app.models.team import Team
-from app.models.meeting import Meeting
 
 
 # --- Вспомогательные перечисления (Enums) ---

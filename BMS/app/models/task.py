@@ -5,9 +5,6 @@ from sqlalchemy import DateTime, Integer, String, ForeignKey, Enum, Text
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 
 from app.core.database import Base
-from app.models.user import User
-from app.models.task import Task
-from app.models.evaluation import Evaluation
 
 
 # --- Вспомогательные перечисления (Enums) ---
