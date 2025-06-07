@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str
 
     DATABASE_URL: str = f"postgresql+asyncpg://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    JWT_LIFETIME_SECONDS: int = 3600
 
     class Config:
         env_file = ".env"

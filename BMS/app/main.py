@@ -1,17 +1,21 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI
 
 from app.routers.auth import router as auth_router
-from app.core.auth import current_active_user
-from app.models.user import User
+from app.routers.meetings import router as meetings_router
+from app.routers.tasks import router as tasks_router
+from app.routers.teams import router as teams_router
+
 
 app = FastAPI(
     title="Business Management System"
 )
 
-# Подключаем роутер аутентификации с общим префиксом /auth
-app.include_router(auth_router)
+app.include_router(auth_router, prefix="/api")
+app.include_router(meetings_router, prefix="/api")
+app.include_router(tasks_router, prefix="/api")
+app.include_router(teams_router, prefix="/api")
 
 
 @app.get("/")
-def read_root():
+def root():
     return {"message": "Welcome to the Business Management System API"}

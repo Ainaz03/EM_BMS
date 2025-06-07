@@ -10,12 +10,14 @@ WORKDIR /app
 # Копируем все файлы нашего приложения
 COPY . .
 
-# Устанавливаем зависимости
-RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -r requirements.txt
+# Установим зависимости и netcat
+RUN apk add --no-cache netcat-openbsd && \
+    chmod +x init_db.sh && \
+    pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
 # Открываем порт 8000 для доступа к приложению
 EXPOSE 8000
 
-# Запускаем приложение
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Указываем скрипт в качестве точки входа
+CMD ["./init_db.sh"]
