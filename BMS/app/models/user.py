@@ -2,6 +2,7 @@ import enum
 
 from sqlalchemy import Column, Integer, String, ForeignKey, Enum, Table
 from sqlalchemy.orm import relationship, Mapped, mapped_column
+from fastapi_users_db_sqlalchemy import SQLAlchemyBaseUserTable
 
 from app.core.database import Base
 from app.models.task import Task
@@ -31,14 +32,17 @@ meeting_participants_association = Table(
 
 # --- Основная модель ---
 
-class User(Base):
-    """Модель пользователя"""
+class User(SQLAlchemyBaseUserTable[int], Base):
+    """
+    Модель пользователя, адаптированная для fastapi-users.
+    SQLAlchemyBaseUserTable[int] добавляет все необходимые поля:
+    - id (мы его переопределяем, чтобы указать что это pk)
+    - email, hashed_password
+    - is_active, is_superuser, is_verified
+    """
     __tablename__ = 'users'
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
-    hashed_password: Mapped[str] = mapped_column(String, nullable=False)
-    
     role: Mapped[UserRole] = mapped_column(Enum(UserRole), default=UserRole.USER)
     
     # Связь с командой: у пользователя может быть одна команда
