@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_
 from typing import List
 
-from app.core.database import get_session
+from app.core.database import get_async_session
 from app.core.auth import current_active_user
 from app.models.user import User
 from app.models.meeting import Meeting
@@ -17,7 +17,7 @@ router = APIRouter(prefix="/meetings", tags=["Meetings"])
 @router.post("/", response_model=MeetingRead, status_code=status.HTTP_201_CREATED)
 def create_meeting(
     meeting_in: MeetingCreate,
-    db: Session = Depends(get_session),
+    db: Session = Depends(get_async_session),
     user: User = Depends(current_active_user)
 ):
     """Создание встречи и добавление участников."""
@@ -59,7 +59,7 @@ def create_meeting(
 
 @router.get("/", response_model=List[MeetingRead])
 def get_user_meetings(
-    db: Session = Depends(get_session),
+    db: Session = Depends(get_async_session),
     user: User = Depends(current_active_user)
 ):
     """Получение всех встреч, в которых участвует пользователь."""
@@ -68,7 +68,7 @@ def get_user_meetings(
 @router.delete("/{meeting_id}", status_code=status.HTTP_204_NO_CONTENT)
 def cancel_meeting(
     meeting_id: int,
-    db: Session = Depends(get_session),
+    db: Session = Depends(get_async_session),
     user: User = Depends(current_active_user)
 ):
     """Отмена встречи."""

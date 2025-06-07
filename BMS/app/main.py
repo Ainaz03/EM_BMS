@@ -10,10 +10,10 @@ app = FastAPI(
     title="Business Management System"
 )
 
-app.include_router(auth_router, prefix="/api")
-app.include_router(meetings_router, prefix="/api")
-app.include_router(tasks_router, prefix="/api")
-app.include_router(teams_router, prefix="/api")
+app.include_router(auth_router)
+app.include_router(meetings_router)
+app.include_router(tasks_router)
+app.include_router(teams_router)
 
 
 @app.get("/")

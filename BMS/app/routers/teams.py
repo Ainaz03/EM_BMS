@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_
 from typing import List
 
-from app.core.database import get_session
+from app.core.database import get_async_session
 from app.core.auth import current_active_user
 from app.models.user import User
 from app.models.team import Team
@@ -16,7 +16,7 @@ router = APIRouter(prefix="/teams", tags=["Teams"])
 @router.post("/", response_model=TeamRead, status_code=status.HTTP_201_CREATED)
 def create_team(
     team_in: TeamCreate,
-    db: Session = Depends(get_session),
+    db: Session = Depends(get_async_session),
     user: User = Depends(current_active_user)
 ):
     """Создание новой команды. Текущий пользователь становится её владельцем."""
@@ -30,7 +30,7 @@ def create_team(
 @router.get("/{team_id}", response_model=TeamRead)
 def get_team(
     team_id: int,
-    db: Session = Depends(get_session),
+    db: Session = Depends(get_async_session),
     user: User = Depends(current_active_user)
 ):
     """Получение информации о команде."""
@@ -47,7 +47,7 @@ def get_team(
 def add_team_member(
     team_id: int,
     user_id: int,
-    db: Session = Depends(get_session),
+    db: Session = Depends(get_async_session),
     current_user: User = Depends(current_active_user)
 ):
     """Добавление пользователя в команду (только для владельца)."""

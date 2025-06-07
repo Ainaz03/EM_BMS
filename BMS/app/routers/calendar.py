@@ -6,7 +6,7 @@ from typing import Optional
 from datetime import date, datetime, timedelta
 import calendar
 
-from app.core.database import get_session
+from app.core.database import get_async_session
 from app.core.auth import current_active_user
 from BMS.app.models.user import User
 from BMS.app.models.meeting import Meeting
@@ -19,7 +19,7 @@ router = APIRouter(prefix="/calendar", tags=["Calendar"])
 @router.get("/day", response_model=CalendarView)
 def get_daily_view(
     date_str: Optional[str] = None, # Формат YYYY-MM-DD
-    db: Session = Depends(get_session),
+    db: Session = Depends(get_async_session),
     user: User = Depends(current_active_user)
 ):
     """
@@ -55,7 +55,7 @@ def get_daily_view(
 def get_monthly_view(
     year: Optional[int] = None,
     month: Optional[int] = None,
-    db: Session = Depends(get_session),
+    db: Session = Depends(get_async_session),
     user: User = Depends(current_active_user)
 ):
     """

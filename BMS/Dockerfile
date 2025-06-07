@@ -1,9 +1,11 @@
+# Dockerfile
+
 FROM python:3.13-alpine
 
 ENV PYTHONDONTWRITEBYTECODE=1
 WORKDIR /app
 
-# Копируем весь проект в /app, включая init_db.sh
+# Копируем весь проект (включая init_db.sh)
 COPY . .
 
 # Устанавливаем netcat и делаем скрипт исполняемым
@@ -14,5 +16,5 @@ RUN apk add --no-cache netcat-openbsd \
 
 EXPOSE 8000
 
-# По умолчанию запускаем наш скрипт
+# Запускаем init_db.sh по умолчанию
 CMD ["sh", "/app/init_db.sh"]

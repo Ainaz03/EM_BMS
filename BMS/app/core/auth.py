@@ -8,14 +8,14 @@ from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
-from app.core.config import Settings
+from app.core.config import settings
 from app.models.user import User
 from app.core.database import get_async_session
 
 
 class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
-    reset_password_token_secret = Settings.SECRET_KEY
-    verification_token_secret = Settings.SECRET_KEY
+    reset_password_token_secret = settings.SECRET_KEY
+    verification_token_secret = settings.SECRET_KEY
 
     async def on_after_register(self, user: User, request: Optional[Request] = None):
         print(f"Пользователь {user.id} зарегистрирован.")
@@ -43,7 +43,7 @@ bearer_transport = BearerTransport(tokenUrl="auth/jwt/login")
 
 
 def get_jwt_strategy() -> JWTStrategy:
-    return JWTStrategy(secret=Settings.SECRET_KEY, lifetime_seconds=3600)
+    return JWTStrategy(secret=settings.SECRET_KEY, lifetime_seconds=3600)
 
 
 auth_backend = AuthenticationBackend(
