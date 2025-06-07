@@ -4,9 +4,10 @@ services:
   app:
     build: .
     container_name: app
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: ./init_db.sh
     volumes:
       - ./app:/app
+      - ./init_db.sh:/app/init_db.sh
     env_file:
       - .env
     ports:
@@ -26,7 +27,6 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./init_db.sh:/docker-entrypoint-initdb.d/init_db.sh
 
   redis:
     image: redis:7

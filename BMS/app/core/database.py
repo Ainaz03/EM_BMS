@@ -15,15 +15,3 @@ AsyncSessionLocal = sessionmaker(
 
 # Базовый класс для всех моделей
 Base = declarative_base()
-
-
-async def get_async_session() -> AsyncSession:
-    """
-    Зависимость (dependency) для получения асинхронной сессии БД.
-    Обеспечивает открытие и закрытие сессии для каждого запроса.
-    """
-    async with AsyncSessionLocal() as session:
-        try:
-            yield session
-        finally:
-            await session.close()
