@@ -12,6 +12,8 @@ class Settings(BaseSettings):
 
     MODE: str
 
+    SECRET_KEY: str
+
     DATABASE_URL: str = f"postgresql+asyncpg://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
     class Config:
