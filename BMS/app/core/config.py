@@ -1,7 +1,7 @@
 from pydantic import BaseSettings
 
 class Settings(BaseSettings):
-    DB_NAM: str
+    DB_NAME: str
     DB_USER: str
     DB_PASSWORD: str
     DB_HOST: str
@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     REDIS_PORT: int
 
     MODE: str
+
+    DATABASE_URL: str = f"postgresql+asyncpg://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
     class Config:
         env_file = ".env"
