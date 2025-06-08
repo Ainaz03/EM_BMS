@@ -4,8 +4,6 @@ from sqlalchemy import DateTime, Integer, ForeignKey
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 
 from app.core.database import Base
-from app.models.user import User
-from app.models.task import Task
 
 
 # --- Основная модель ---

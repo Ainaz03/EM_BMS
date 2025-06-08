@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 
-from app.core.database import get_session
+from app.core.database import get_async_session
 from app.core.auth import current_active_user
 from app.models.user import User
 from app.models.evaluation import Evaluation
@@ -17,7 +17,7 @@ router = APIRouter(prefix="/tasks", tags=["Tasks"])
 @router.post("/", response_model=TaskRead, status_code=status.HTTP_201_CREATED)
 def create_task(
     task_in: TaskCreate,
-    db: Session = Depends(get_session),
+    db: Session = Depends(get_async_session),
     user: User = Depends(current_active_user)
 ):
     """Создание новой задачи в команде пользователя."""
@@ -38,7 +38,7 @@ def create_task(
 
 @router.get("/", response_model=List[TaskRead])
 def get_team_tasks(
-    db: Session = Depends(get_session),
+    db: Session = Depends(get_async_session),
     user: User = Depends(current_active_user)
 ):
     """Получение всех задач команды, в которой состоит пользователь."""
@@ -52,7 +52,7 @@ def get_team_tasks(
 def update_task(
     task_id: int,
     task_update: TaskUpdate,
-    db: Session = Depends(get_session),
+    db: Session = Depends(get_async_session),
     user: User = Depends(current_active_user)
 ):
     """Обновление задачи."""
@@ -74,7 +74,7 @@ def update_task(
 @router.post("/evaluations/", response_model=EvaluationRead, status_code=status.HTTP_201_CREATED)
 def create_evaluation(
     eval_in: EvaluationCreate,
-    db: Session = Depends(get_session),
+    db: Session = Depends(get_async_session),
     user: User = Depends(current_active_user) # Предполагается, что оценивает менеджер
 ):
     """Создание оценки для выполненной задачи."""

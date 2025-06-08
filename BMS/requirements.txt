@@ -3,5 +3,7 @@ uvicorn[standard]
 sqlalchemy
 psycopg2-binary
 pydantic[email]
+pydantic-settings
 fastapi-users[sqlalchemy]
 alembic
+asyncpg

@@ -4,10 +4,9 @@ services:
   app:
     build: .
     container_name: app
-    command: ./init_db.sh
+    # CMD из Dockerfile запустит init_db.sh
     volumes:
-      - ./app:/app
-      - ./init_db.sh:/app/init_db.sh
+      - .:/app
     env_file:
       - .env
     ports:
@@ -23,10 +22,11 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-    ports:
-      - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql  # если создаёшь БД через init.sql
+    ports:
+      - "5432:5432"
 
   redis:
     image: redis:7

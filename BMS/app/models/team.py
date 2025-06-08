@@ -2,7 +2,6 @@ from sqlalchemy import Integer, String, ForeignKey
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 
 from app.core.database import Base
-from app.models.user import User
 
 
 # --- Основная модель ---
