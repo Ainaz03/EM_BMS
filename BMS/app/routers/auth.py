@@ -1,26 +1,26 @@
 from fastapi import APIRouter
 
 from app.core.auth import auth_backend, fastapi_users
-from app.schemas.user import UserRead, UserCreate
+from app.schemas.user import UserRead, UserCreate, UserUpdate
 
+router = APIRouter(prefix="/auth", tags=["auth"])
 
-router = APIRouter(prefix="/auth")
-
-
-# Роутер для регистрации
+# Регистрация
 router.include_router(
-    fastapi_users.get_register_router(UserRead, UserCreate),
-    prefix="/register"
-)
+    fastapi_users.get_register_router(UserRead, UserCreate))
 
-# Роутер для логина/аутентификации
+# Логин
 router.include_router(
-    fastapi_users.get_auth_router(auth_backend),
-    prefix="/jwt"
-)
+    fastapi_users.get_auth_router(auth_backend))
 
-# Роутер для сброса пароля
+# Сброс пароля (запрос токена и сброс)
 router.include_router(
-    fastapi_users.get_reset_password_router(),
-    prefix="/forgot-password"
-)
+    fastapi_users.get_reset_password_router())
+
+# Верификация email — передаём схему для чтения пользователя
+router.include_router(
+    fastapi_users.get_verify_router(UserRead))
+
+# CRUD пользователей (только админы)
+router.include_router(
+    fastapi_users.get_users_router(UserRead, UserUpdate))

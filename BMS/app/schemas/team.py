@@ -28,3 +28,6 @@ class TeamRead(TeamBase):
 
     model_config = ConfigDict(from_attributes=True)
     
+class TeamMemberAdd(BaseModel):
+    user_id: int = Field(..., ge=1)
+    

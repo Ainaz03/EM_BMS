@@ -1,63 +1,73 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from sqlalchemy import or_
-from typing import List
+from sqlalchemy import select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_async_session
 from app.core.auth import current_active_user
-from app.models.user import User
 from app.models.team import Team
-from app.schemas.team import TeamRead, TeamCreate
-
+from app.models.user import User
+from app.schemas.team import TeamRead, TeamCreate, TeamMemberAdd
 
 router = APIRouter(prefix="/teams", tags=["Teams"])
 
-
 @router.post("/", response_model=TeamRead, status_code=status.HTTP_201_CREATED)
-def create_team(
+async def create_team(
     team_in: TeamCreate,
-    db: Session = Depends(get_async_session),
-    user: User = Depends(current_active_user)
+    db: AsyncSession = Depends(get_async_session),
+    user=Depends(current_active_user),
 ):
     """Создание новой команды. Текущий пользователь становится её владельцем."""
-    db_team = Team(**team_in.dict(), owner_id=user.id)
-    db.add(db_team)
-    db.commit()
-    db.refresh(db_team)
-    return db_team
-
-
-@router.get("/{team_id}", response_model=TeamRead)
-def get_team(
-    team_id: int,
-    db: Session = Depends(get_async_session),
-    user: User = Depends(current_active_user)
-):
-    """Получение информации о команде."""
-    team = db.query(Team).filter(Team.id == team_id).first()
-    if not team:
-        raise HTTPException(status_code=404, detail="Team not found")
-    # Проверка, что пользователь является членом или владельцем команды
-    if user.team_id != team.id and team.owner_id != user.id:
-         raise HTTPException(status_code=403, detail="Not enough permissions")
+    stmt = Team.__table__.insert().values(
+        **team_in.model_dump(),
+        owner_id=user.id
+    ).returning(Team)
+    result = await db.execute(stmt)
+    team = result.scalar_one()
+    await db.commit()
     return team
 
-
-@router.post("/{team_id}/members/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-def add_team_member(
+@router.get("/{team_id}", response_model=TeamRead)
+async def get_team(
     team_id: int,
-    user_id: int,
-    db: Session = Depends(get_async_session),
-    current_user: User = Depends(current_active_user)
+    db: AsyncSession = Depends(get_async_session),
+    user=Depends(current_active_user),
+):
+    """Получение информации о команде."""
+    result = await db.execute(select(Team).where(Team.id == team_id))
+    team = result.scalar_one_or_none()
+    if not team:
+        raise HTTPException(404, "Team not found")
+    if team.owner_id != user.id and user.team_id != team.id:
+        raise HTTPException(403, "Not enough permissions")
+    return team
+
+@router.post("/{team_id}/members", status_code=status.HTTP_204_NO_CONTENT)
+async def add_team_member(
+    team_id: int,
+    payload: TeamMemberAdd,
+    db: AsyncSession = Depends(get_async_session),
+    current_user=Depends(current_active_user),
 ):
     """Добавление пользователя в команду (только для владельца)."""
-    team = db.query(Team).filter(Team.id == team_id).first()
+    # Проверяем команду и права
+    result = await db.execute(select(Team).where(Team.id == team_id))
+    team = result.scalar_one_or_none()
     if not team or team.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not allowed or team not found")
-    
-    member_to_add = db.query(User).filter(User.id == user_id).first()
-    if not member_to_add:
-        raise HTTPException(status_code=404, detail="User to add not found")
+        raise HTTPException(403, "Not allowed or team not found")
 
-    member_to_add.team_id = team_id
-    db.commit()
+    # Проверяем пользователя
+    result = await db.execute(select(User).where(User.id == payload.user_id))
+    member = result.scalar_one_or_none()
+    if not member:
+        raise HTTPException(404, "User to add not found")
+
+    # Обновляем поле team_id
+    stmt = (
+        update(User)
+        .where(User.id == payload.user_id)
+        .values(team_id=team_id)
+    )
+    await db.execute(stmt)
+    await db.commit()
+    # Нет тела ответа
+    return
