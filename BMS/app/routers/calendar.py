@@ -1,98 +1,124 @@
-# src/api/endpoints/calendar.py
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from sqlalchemy import cast, Date, and_
-from typing import Optional
-from datetime import date, datetime, timedelta
-import calendar
+# app/routers/calendar.py
+
+from datetime import datetime, date, time
+import calendar as pycal
+from typing import List
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import PlainTextResponse
+from sqlalchemy import select, and_, func
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.database import get_async_session
 from app.core.auth import current_active_user
-from BMS.app.models.user import User
-from BMS.app.models.meeting import Meeting
-from BMS.app.models.task import Task
-from BMS.app.schemas.calendar import CalendarView
+from app.models.user import User
+from app.models.task import Task
+from app.models.meeting import Meeting
+
+router = APIRouter(prefix="/calendar", tags=["Календарь"])
 
 
-router = APIRouter(prefix="/calendar", tags=["Calendar"])
+# ------------------------
+# Вспомогательные функции
+# ------------------------
 
-@router.get("/day", response_model=CalendarView)
-def get_daily_view(
-    date_str: Optional[str] = None, # Формат YYYY-MM-DD
-    db: Session = Depends(get_async_session),
-    user: User = Depends(current_active_user)
+async def get_tasks_for_date(
+    db: AsyncSession, team_id: int, target: date
+) -> List[Task]:
+    stmt = (
+        select(Task)
+        .where(Task.deadline != None)
+        .where(func.date(Task.deadline) == target)
+    )
+    # Если у вас нет team_id прямо в Task, фильтруйте по assignee.team_id или creator.team_id
+    stmt = stmt.where(
+        (Task.assignee.has(team_id=team_id)) |
+        (Task.creator.has(team_id=team_id))
+    )
+    res = await db.execute(stmt)
+    return res.scalars().all()
+
+
+async def get_meetings_for_date(
+    db: AsyncSession, user_id: int, target: date
+) -> List[Meeting]:
+    stmt = (
+        select(Meeting)
+        .options(selectinload(Meeting.participants))
+        .where(func.date(Meeting.start_time) == target)
+        .join(Meeting.participants)
+        .where(Meeting.participants.any(id=user_id))
+    )
+    res = await db.execute(stmt)
+    return res.scalars().all()
+
+
+# ------------------------
+# Эндпоинты
+# ------------------------
+
+@router.get(
+    "/daily/{target_date}",
+    response_class=PlainTextResponse,
+    description="Дневной вид: текстовая таблица задач и встреч на указанную дату YYYY-MM-DD"
+)
+async def daily_calendar(
+    target_date: str,
+    current_user: User = Depends(current_active_user),
+    db: AsyncSession = Depends(get_async_session),
 ):
-    """
-    Получение списка задач и встреч на конкретный день.
-    Если дата не указана, используется сегодняшний день.
-    """
     try:
-        target_date = datetime.strptime(date_str, "%Y-%m-%d").date() if date_str else date.today()
+        d = datetime.fromisoformat(target_date).date()
     except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid date format. Use YYYY-MM-DD."
-        )
+        raise HTTPException(400, "Неверный формат даты, ожидается YYYY-MM-DD")
 
-    # Задачи, назначенные пользователю, с дедлайном в этот день
-    tasks = db.query(Task).filter(
-        Task.assignee_id == user.id,
-        cast(Task.deadline, Date) == target_date
-    ).all()
-    
-    # Встречи, в которых пользователь участвует и которые проходят в этот день
-    # (встреча может длиться несколько дней)
-    meetings = db.query(Meeting).join(Meeting.participants).filter(
-        User.id == user.id,
-        cast(Meeting.start_time, Date) <= target_date,
-        cast(Meeting.end_time, Date) >= target_date
-    ).all()
-    
-    return CalendarView(tasks=tasks, meetings=meetings)
+    if not current_user.team_id:
+        return "Вы не состоите в команде."
+
+    tasks = await get_tasks_for_date(db, current_user.team_id, d)
+    meetings = await get_meetings_for_date(db, current_user.id, d)
+
+    # Формируем строки таблицы
+    lines = ["Время      | Тип     | Заголовок"]
+    lines.append("-" * 40)
+    for t in sorted(tasks, key=lambda x: x.deadline or datetime.min):
+        tm = t.deadline.time().strftime("%H:%M") if t.deadline else "--:--"
+        lines.append(f"{tm:<10}| Задача  | {t.title}")
+    for m in sorted(meetings, key=lambda x: x.start_time):
+        tm = m.start_time.time().strftime("%H:%M")
+        lines.append(f"{tm:<10}| Встреча| {m.title}")
+    if len(lines) == 2:
+        lines.append("Событий нет.")
+    return "\n".join(lines)
 
 
-@router.get("/month", response_model=CalendarView)
-def get_monthly_view(
-    year: Optional[int] = None,
-    month: Optional[int] = None,
-    db: Session = Depends(get_async_session),
-    user: User = Depends(current_active_user)
+@router.get(
+    "/monthly/{year}/{month}",
+    response_class=PlainTextResponse,
+    description="Месячный вид: текстовая таблица с количеством задач и встреч на каждый день"
+)
+async def monthly_calendar(
+    year: int,
+    month: int,
+    current_user: User = Depends(current_active_user),
+    db: AsyncSession = Depends(get_async_session),
 ):
-    """
-    Получение списка задач и встреч на конкретный месяц.
-    Если год или месяц не указаны, используются текущие.
-    """
-    today = date.today()
-    target_year = year or today.year
-    target_month = month or today.month
+    if not 1 <= month <= 12:
+        raise HTTPException(400, "Месяц должен быть от 1 до 12")
 
-    if not 1 <= target_month <= 12:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid month. Must be between 1 and 12."
-        )
+    if not current_user.team_id:
+        return "Вы не состоите в команде."
 
-    # Определяем первый и последний день месяца
-    _, num_days = calendar.monthrange(target_year, target_month)
-    start_date = date(target_year, target_month, 1)
-    end_date = date(target_year, target_month, num_days)
+    # Подготовим шапку таблицы
+    _, days_in_month = pycal.monthrange(year, month)
+    header = "Дата       | Задач | Встреч"
+    lines = [header, "-" * len(header)]
 
-    # Конвертируем в datetime для корректного сравнения
-    start_dt = datetime.combine(start_date, datetime.min.time())
-    end_dt = datetime.combine(end_date, datetime.max.time())
-    
-    # Задачи, назначенные пользователю, с дедлайном в этом месяце
-    tasks = db.query(Task).filter(
-        Task.assignee_id == user.id,
-        Task.deadline.between(start_dt, end_dt)
-    ).all()
+    # Для каждого дня считаем задачи и встречи
+    for day in range(1, days_in_month + 1):
+        d = date(year, month, day)
+        tasks = await get_tasks_for_date(db, current_user.team_id, d)
+        meetings = await get_meetings_for_date(db, current_user.id, d)
+        lines.append(f"{d.isoformat():<10}| {len(tasks):^5} | {len(meetings):^6}")
 
-    # Встречи, которые пересекаются с этим месяцем
-    meetings = db.query(Meeting).join(Meeting.participants).filter(
-        User.id == user.id,
-        # Проверка на пересечение временных интервалов
-        Meeting.start_time <= end_dt,
-        Meeting.end_time >= start_dt
-    ).all()
-    
-    return CalendarView(tasks=tasks, meetings=meetings)
+    return "\n".join(lines)
