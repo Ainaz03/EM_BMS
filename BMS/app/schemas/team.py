@@ -1,30 +1,27 @@
-from pydantic import BaseModel, ConfigDict, Field
-from typing import List, Optional
+from pydantic import BaseModel, Field, ConfigDict
+from typing import Optional
 
-from app.schemas.user import UserRead
-
-
-class TeamBase(BaseModel):
-    """Базовая схема команды."""
-    name: str = Field(max_length=100)
+from app.models.user import UserRole
 
 
-class TeamCreate(TeamBase):
-    """Схема для создания команды. Admin_id будет добавлен на уровне эндпоинта."""
-    pass
-
-
-class TeamUpdate(BaseModel):
-    """Схема для обновления названия команды."""
-    name: Optional[str] = Field(None, max_length=100)
-
-
-class TeamRead(TeamBase):
-    """Схема для чтения данных команды, включая её участников."""
-    id: int
-    admin_id: int
-    invite_code: Optional[str] = None
-    members: List[UserRead] = [] # Возвращаем список пользователей с их данными
-
+class TeamCreate(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    
+    name: str = Field(..., min_length=1, max_length=100, description="Название команды")
+
+
+class TeamRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    name: str
+    invite_code: Optional[str] = ''
+    admin_id: int
+    members: list[int]
+
+
+class TeamMemberAdd(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    user_id: int = Field(..., description="ID пользователя, которого нужно добавить в команду")
+
+class TeamMemberRoleUpdate(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    role: UserRole = Field(..., description="Роль участника в рамках команды: MANAGER или USER")

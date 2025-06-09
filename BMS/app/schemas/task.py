@@ -1,42 +1,46 @@
-from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime
-from typing import List, Optional
+from pydantic import BaseModel, ConfigDict, Field
+from typing import Optional, List
+from enum import Enum
 
 from app.schemas.comment import CommentRead
-from app.models.task import TaskStatus
-from app.schemas.user import UserRead
+from app.schemas.evaluation import EvaluationRead
 
 
+# --- Статусы задач ---
+class TaskStatus(str, Enum):
+    OPEN = "open"
+    IN_PROGRESS = "in_progress"
+    DONE = "done"
+
+# --- Основные задачи ---
 class TaskBase(BaseModel):
-    """Базовая схема задачи."""
-    title: str = Field(max_length=200)
-    description: Optional[str] = None
-    deadline: Optional[datetime] = None
-
+    model_config = ConfigDict(from_attributes=True)
+    title: str = Field(..., min_length=1, max_length=200)
+    description: Optional[str] = Field(None, description="Описание")
+    deadline: Optional[datetime] = Field(None, description="Дедлайн задачи")
+    assignee_id: int = Field(..., description="ID исполнителя")
 
 class TaskCreate(TaskBase):
-    """Схема для создания задачи."""
-    assignee_id: int
-
+    ...
 
 class TaskUpdate(BaseModel):
-    """Схема для обновления задачи."""
-    title: Optional[str] = Field(None, max_length=200)
+    model_config = ConfigDict(from_attributes=True)
+    title: Optional[str] = Field(None, description="Новое название")
     description: Optional[str] = None
-    status: Optional[TaskStatus] = None
     deadline: Optional[datetime] = None
     assignee_id: Optional[int] = None
+    status: Optional[TaskStatus] = None
 
-
-class TaskRead(TaskBase):
-    """Схема для чтения задачи со всеми связанными данными."""
-    id: int
-    created_at: datetime
-    status: TaskStatus
-    team_id: int
-    
-    creator: UserRead # Показываем создателя
-    assignee: UserRead # Показываем исполнителя
-    comments: List[CommentRead] = [] # Показываем все комментарии к задаче
-
+class TaskRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
+    id: int
+    title: str
+    description: Optional[str]
+    status: TaskStatus
+    creator_id: int
+    assignee_id: int
+    created_at: datetime
+    deadline: Optional[datetime]
+    comments: List[CommentRead]
+    evaluations: List[EvaluationRead]

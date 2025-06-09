@@ -1,12 +1,15 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from pathlib import Path
+
+
+ROOT_DIR = Path(__file__).parents[2]
 
 class Settings(BaseSettings):
     DB_NAME: str
     DB_USER: str
-    DB_PASSWORD: str
-    DB_HOST: str = "localhost"
-    DB_PORT: int = 5432
+    DB_PASS: str
+    DB_HOST: str
+    DB_PORT: int
 
     REDIS_HOST: str
     REDIS_PORT: int
@@ -15,18 +18,13 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     JWT_LIFETIME_SECONDS: int = 3600
 
-    class Config:
-        # Абсолютный путь до .env, независимо от cwd
-        env_file = str(Path(__file__).parents[2] / ".env")
-        env_file_encoding = "utf-8"
-
     @property
-    def DATABASE_URL(self) -> str:
-        # синхронный URL для Alembic
+    def DATABASE_URL_asyncpg(self) -> str:
         return (
-            f"postgresql://{self.DB_USER}:{self.DB_PASSWORD}"
-            f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+            f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASS}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
         )
+    
+    model_config = SettingsConfigDict(env_file=".env")
 
-# глобальный экземпляр
+
 settings = Settings()

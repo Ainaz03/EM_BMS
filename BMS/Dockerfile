@@ -16,5 +16,4 @@ RUN apk add --no-cache netcat-openbsd \
 
 EXPOSE 8000
 
-# Запускаем init_db.sh по умолчанию
 CMD ["sh", "/app/init_db.sh"]
