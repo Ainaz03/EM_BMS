@@ -1,59 +1,86 @@
 import enum
-
-from sqlalchemy import Column, Integer, String, ForeignKey, Enum, Table
+from sqlalchemy import Column, Integer, ForeignKey, Enum, Table
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from fastapi_users_db_sqlalchemy import SQLAlchemyBaseUserTable
 
 from app.core.database import Base
 
 
-# --- Вспомогательные перечисления (Enums) ---
+# -------------------------------------------------------------------
+# Перечисления
+# -------------------------------------------------------------------
 
 class UserRole(str, enum.Enum):
-    """Роли пользователей"""
-    ADMIN = "admin"      # Админ команды, может всё в рамках команды
-    MANAGER = "manager"  # Менеджер, может создавать задачи и управлять ими
-    USER = "user"        # Обычный сотрудник, может только выполнять задачи
+    """Роли пользователей в системе."""
+    ADMIN = "admin"
+    MANAGER = "manager"
+    USER = "user"
 
 
-# --- Ассоциативная таблица для связи "многие-ко-многим" между Встречами и Пользователями ---
-# У одной встречи много участников, и один пользователь может участвовать во многих встречах.
+# -------------------------------------------------------------------
+# Ассоциативная таблица для связи "многие-ко-многим"
+# между встречами и пользователями
+# -------------------------------------------------------------------
 
 meeting_participants_association = Table(
     'meeting_participants',
     Base.metadata,
-    Column('meeting_id', Integer, ForeignKey('meetings.id')),
-    Column('user_id', Integer, ForeignKey('users.id'))
+    Column('meeting_id', Integer, ForeignKey('meetings.id'), primary_key=True),
+    Column('user_id', Integer, ForeignKey('users.id'), primary_key=True),
 )
 
 
-# --- Основная модель ---
+# -------------------------------------------------------------------
+# Основная модель User
+# -------------------------------------------------------------------
 
 class User(SQLAlchemyBaseUserTable[int], Base):
     """
-    Модель пользователя, адаптированная для fastapi-users.
-    SQLAlchemyBaseUserTable[int] добавляет все необходимые поля:
-    - id (мы его переопределяем, чтобы указать что это pk)
-    - email, hashed_password
-    - is_active, is_superuser, is_verified
+    Пользователь системы.
+    Наследуется от SQLAlchemyBaseUserTable, который уже содержит:
+      - id, email, hashed_password
+      - is_active, is_superuser, is_verified
     """
     __tablename__ = 'users'
 
+    # --- Основные поля ---
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    role: Mapped[UserRole] = mapped_column(Enum(UserRole), default=UserRole.USER)
-    
-    # Связь с командой: у пользователя может быть одна команда
-    team_id: Mapped[int | None] = mapped_column(Integer, ForeignKey('teams.id'), nullable=True)
-    team: Mapped["Team"] = relationship(back_populates="members", foreign_keys=[team_id])
+    role: Mapped[UserRole] = mapped_column(
+        Enum(UserRole, name="user_role_enum"),
+        default=UserRole.USER,
+        nullable=False,
+        comment="Глобальная роль пользователя"
+    )
 
-    # Задачи, которые пользователь создал (для менеджеров/админов)
-    created_tasks: Mapped[list["Task"]] = relationship("Task", back_populates="creator", foreign_keys="Task.creator_id")
-    # Задачи, которые назначены пользователю
-    assigned_tasks: Mapped[list["Task"]] = relationship("Task", back_populates="assignee", foreign_keys="Task.assignee_id")
-    
-    # Встречи, в которых пользователь участвует
+    # --- Связь с командой ---
+    team_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey('teams.id', ondelete='SET NULL'),
+        nullable=True,
+        comment="ID команды, к которой привязан пользователь"
+    )
+    team: Mapped["Team"] = relationship(
+        "Team",
+        back_populates="members",
+        foreign_keys=[team_id]
+    )
+
+    # --- Связь с задачами ---
+    created_tasks: Mapped[list["Task"]] = relationship(
+        "Task",
+        back_populates="creator",
+        foreign_keys="Task.creator_id",
+        cascade="all, delete-orphan",
+    )
+    assigned_tasks: Mapped[list["Task"]] = relationship(
+        "Task",
+        back_populates="assignee",
+        foreign_keys="Task.assignee_id",
+    )
+
+    # --- Связь с встречами ---
     meetings: Mapped[list["Meeting"]] = relationship(
         "Meeting",
         secondary=meeting_participants_association,
-        back_populates="participants"
+        back_populates="participants",
     )

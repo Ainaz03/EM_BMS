@@ -1,61 +1,103 @@
 import enum
 from datetime import datetime
-
-from sqlalchemy import DateTime, Integer, String, ForeignKey, Enum, Text
+from typing import List, Optional
+from sqlalchemy import DateTime, Integer, String, ForeignKey, Enum as SQLEnum, Text
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 
 from app.core.database import Base
 
 
-# --- Вспомогательные перечисления (Enums) ---
+# -------------------------------------------------------------------
+# Перечисления
+# -------------------------------------------------------------------
 
 class TaskStatus(str, enum.Enum):
-    """Статусы задач"""
+    """Возможные статусы задачи."""
     OPEN = "open"                # Открыта
     IN_PROGRESS = "in_progress"  # В работе
     DONE = "done"                # Выполнена
 
 
-# --- Основная модель ---
+# -------------------------------------------------------------------
+# Основная модель Task
+# -------------------------------------------------------------------
 
 class Task(Base):
-    """Модель задачи"""
+    """
+    Задача внутри системы.
+    Хранит информацию о заголовке, описании, сроках,
+    создателе, исполнителе, комментариях и оценках.
+    """
     __tablename__ = 'tasks'
 
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    title: Mapped[str] = mapped_column(String(200), nullable=False)
-    description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    status: Mapped[TaskStatus] = mapped_column(Enum(TaskStatus), default=TaskStatus.OPEN)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    deadline: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # --- Базовые поля ---
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        index=True,
+        comment="Уникальный идентификатор задачи"
+    )
+    title: Mapped[str] = mapped_column(
+        String(200),
+        nullable=False,
+        comment="Краткое название задачи"
+    )
+    description: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+        comment="Подробное описание задачи"
+    )
+    status: Mapped[TaskStatus] = mapped_column(
+        SQLEnum(TaskStatus, name="task_status_enum"),
+        default=TaskStatus.OPEN,
+        nullable=False,
+        comment="Текущий статус задачи"
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.utcnow,
+        nullable=False,
+        comment="Дата и время создания задачи"
+    )
+    deadline: Mapped[Optional[datetime]] = mapped_column(
+        DateTime,
+        nullable=True,
+        comment="Срок выполнения задачи"
+    )
 
-    # Кто создал задачу
-    creator_id: Mapped[int] = mapped_column(Integer, ForeignKey('users.id'))
-    creator: Mapped["User"] = relationship("User", back_populates="created_tasks", foreign_keys=[creator_id])
-    
-    # Кому назначена задача
-    assignee_id: Mapped[int] = mapped_column(Integer, ForeignKey('users.id'))
-    assignee: Mapped["User"] = relationship("User", back_populates="assigned_tasks", foreign_keys=[assignee_id])
-    
-    # Комментарии к задаче
-    comments: Mapped[list["Comment"]] = relationship("Comment", back_populates="task")
-    
-    # Оценки задачи
-    evaluations: Mapped[list["Evaluation"]] = relationship("Evaluation", back_populates="task")
+    # --- Связь с пользователями ---
+    creator_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        comment="ID пользователя, создавшего задачу"
+    )
+    creator: Mapped["User"] = relationship(
+        "User",
+        back_populates="created_tasks",
+        foreign_keys=[creator_id],
+    )
 
-    
-# --- Вспомогательные модели ---
+    assignee_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey('users.id', ondelete='SET NULL'),
+        nullable=False,
+        comment="ID пользователя—исполнителя задачи"
+    )
+    assignee: Mapped["User"] = relationship(
+        "User",
+        back_populates="assigned_tasks",
+        foreign_keys=[assignee_id],
+    )
 
-class Comment(Base):
-    """Модель комментария к задаче"""
-    __tablename__ = 'comments'
-
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    text: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    
-    task_id: Mapped[int] = mapped_column(Integer, ForeignKey('tasks.id'))
-    task: Mapped["Task"] = relationship("Task", back_populates="comments")
-
-    author_id: Mapped[int] = mapped_column(Integer, ForeignKey('users.id'))
-    author: Mapped["User"] = relationship("User")
+    # --- Связанные сущности ---
+    comments: Mapped[List["Comment"]] = relationship(
+        "Comment",
+        back_populates="task",
+        cascade="all, delete-orphan",
+    )
+    evaluations: Mapped[List["Evaluation"]] = relationship(
+        "Evaluation",
+        back_populates="task",
+        cascade="all, delete-orphan",
+    )
