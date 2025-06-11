@@ -2,14 +2,43 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 
-# --- Оценки ---
+# -------------------------------------------------------------------
+# Pydantic-схемы для работы с оценками
+# -------------------------------------------------------------------
+
 class EvaluationRead(BaseModel):
+    """
+    Модель ответа с деталями оценки.
+    """
     model_config = ConfigDict(from_attributes=True)
-    id: int
-    score: int
-    evaluator_id: int
-    created_at: datetime
+
+    id: int = Field(
+        ...,
+        description="Уникальный идентификатор оценки"
+    )
+    score: int = Field(
+        ...,
+        description="Баллы, выставленные за задачу"
+    )
+    evaluator_id: int = Field(
+        ...,
+        description="ID пользователя, который выставил оценку"
+    )
+    created_at: datetime = Field(
+        ...,
+        description="Дата и время создания оценки"
+    )
+
 
 class EvaluationCreate(BaseModel):
+    """
+    Модель для создания новой оценки задачи.
+    """
     model_config = ConfigDict(from_attributes=True)
-    score: int = Field(..., ge=1, le=5, description="Оценка от 1 до 5")
+
+    score: int = Field(
+        ...,
+        ge=1,
+        le=5,
+        description="Оценка за задачу от 1 до 5"
+    )

@@ -1,18 +1,21 @@
-from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update
-from sqlalchemy.orm import selectinload
-from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy import update
 
+from app.utils.services import assert_team_admin_or_global_admin, get_team_or_404, get_user_or_404
+from app.core.auth import current_active_user
 from app.core.database import get_async_session
 from app.models.team import Team
 from app.models.user import User, UserRole
-from app.core.auth import current_active_user
+from app.schemas.team import TeamCreate, TeamRead, TeamMemberAdd, TeamMemberRoleUpdate
 from app.utils.codegen import generate_unique_invite_code
-from app.schemas.team import TeamMemberRoleUpdate, TeamRead, TeamCreate, TeamMemberAdd
+
 
 router = APIRouter(prefix="/teams", tags=["Команды"])
+
+# -------------------------------------------------------------------
+# Эндпоинты
+# -------------------------------------------------------------------
 
 @router.post(
     "/",
@@ -26,10 +29,9 @@ async def create_team(
     db: AsyncSession = Depends(get_async_session),
 ):
     if current_user.role != UserRole.ADMIN:
-        raise HTTPException(status_code=403, detail="Только администратор системы или менеджер может создавать команду")
+        raise HTTPException(status_code=403, detail="Только администратор системы может создавать команду")
 
     code = await generate_unique_invite_code(db)
-
     team = Team(
         name=team_in.name,
         invite_code=code,
@@ -51,21 +53,15 @@ async def create_team(
 @router.get(
     "/{team_id}",
     response_model=TeamRead,
-    description="Просмотр информации о команде по её ID. " \
-    "Доступно глобальным администраторам."
+    description="Просмотр информации о команде по её ID (глобальные админы или админ этой команды)"
 )
 async def read_team(
     team_id: int,
     current_user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_async_session),
 ):
-    if current_user.role != UserRole.ADMIN and team.admin_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Нет доступа к информации этой команды")
-
-    res = await db.execute(select(Team).options(selectinload(Team.members)).where(Team.id == team_id))
-    team = res.scalars().first()
-    if not team:
-        raise HTTPException(status_code=404, detail="Команда не найдена")
+    team = await get_team_or_404(team_id, db)
+    assert_team_admin_or_global_admin(current_user, team)
 
     return TeamRead(
         id=team.id,
@@ -79,8 +75,7 @@ async def read_team(
 @router.post(
     "/{team_id}/members",
     status_code=status.HTTP_204_NO_CONTENT,
-    description="Добавление участника в команду по его user_id. " \
-    "Доступно только администратору команды или глобальному администратору."
+    description="Добавление участника в команду (глобальные админы или админ команды)"
 )
 async def add_member(
     team_id: int,
@@ -88,19 +83,10 @@ async def add_member(
     current_user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_async_session),
 ):
-    if current_user.role != UserRole.ADMIN and team.admin_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Только администратор команды или системы может добавлять участников")
-    
-    res = await db.execute(select(Team).options(selectinload(Team.members)).where(Team.id == team_id))
-    team = res.scalars().first()
-    if not team:
-        raise HTTPException(status_code=404, detail="Команда не найдена")
+    team = await get_team_or_404(team_id, db)
+    assert_team_admin_or_global_admin(current_user, team)
 
-    res_u = await db.execute(select(User).where(User.id == member_in.user_id))
-    user = res_u.scalars().first()
-    if not user:
-        raise HTTPException(status_code=404, detail="Пользователь не найден")
-
+    user = await get_user_or_404(member_in.user_id, db)
     team.members.append(user)
     await db.commit()
 
@@ -108,8 +94,7 @@ async def add_member(
 @router.delete(
     "/{team_id}/members/{user_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    description="Удаление участника из команды по его user_id. " \
-    "Доступно только администратору команды или глобальному администратору."
+    description="Удаление участника из команды (глобальные админы или админ команды)"
 )
 async def remove_member(
     team_id: int,
@@ -117,18 +102,10 @@ async def remove_member(
     current_user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_async_session),
 ):
-    if current_user.role != UserRole.ADMIN and team.admin_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Только администратор команды или системы может удалять участников")
+    team = await get_team_or_404(team_id, db)
+    assert_team_admin_or_global_admin(current_user, team)
 
-    res = await db.execute(select(Team).options(selectinload(Team.members)).where(Team.id == team_id))
-    team = res.scalars().first()
-    if not team:
-        raise HTTPException(status_code=404, detail="Команда не найдена")
-
-    res_u = await db.execute(select(User).where(User.id == user_id))
-    user = res_u.scalars().first()
-    if not user:
-        raise HTTPException(status_code=404, detail="Пользователь не найден")
+    user = await get_user_or_404(user_id, db)
 
     if user in team.members:
         team.members.remove(user)
@@ -138,10 +115,7 @@ async def remove_member(
 @router.patch(
     "/{team_id}/members/{user_id}/role",
     status_code=status.HTTP_204_NO_CONTENT,
-    description=(
-        "Изменение роли участника команды. "
-        "Доступно только администратору команды или глобальному администратору."
-    )
+    description="Изменение роли участника (только администраторы команды или системы)"
 )
 async def update_member_role(
     team_id: int,
@@ -150,34 +124,18 @@ async def update_member_role(
     current_user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_async_session),
 ):
-    # --- 1. Проверка доступа: админ системы или админ команды ---
-    # Загружаем команду
-    res = await db.execute(
-        select(Team).where(Team.id == team_id)
-    )
-    team = res.scalars().first()
-    if not team:
-        raise HTTPException(status_code=404, detail="Команда не найдена")
+    team = await get_team_or_404(team_id, db)
+    assert_team_admin_or_global_admin(current_user, team)
 
-    if not (current_user.role == UserRole.ADMIN or team.admin_id == current_user.id):
-        raise HTTPException(status_code=403, detail="Только администратор команды или системы может менять роли")
+    user = await get_user_or_404(user_id, db)
 
-    # --- 2. Проверяем, что пользователь состоит в команде ---
-    res_u = await db.execute(
-        select(User).where(User.id == user_id)
-    )
-    user = res_u.scalars().first()
-    if not user or user.team_id != team_id:
-        raise HTTPException(status_code=404, detail="Участник не найден или не состоит в этой команде")
+    if user.team_id != team_id:
+        raise HTTPException(status_code=400, detail="Пользователь не состоит в этой команде")
 
-    # --- 3. Не даём понижать роль администратора команды ---
     if user.id == team.admin_id:
         raise HTTPException(status_code=400, detail="Нельзя менять роль администратора команды")
 
-    # --- 4. Обновляем роль ---
     await db.execute(
-        update(User)
-        .where(User.id == user_id)
-        .values(role=role_in.role)
+        update(User).where(User.id == user_id).values(role=role_in.role)
     )
     await db.commit()

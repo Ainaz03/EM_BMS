@@ -40,10 +40,6 @@ var/
 .DS_Store
 Thumbs.db
 
-# Файлы окружения и секреты
-.env
-.env.*
-
 # Файлы тестов и покрытия
 htmlcov/
 .tox/
