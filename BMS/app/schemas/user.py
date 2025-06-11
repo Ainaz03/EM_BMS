@@ -34,3 +34,4 @@ class UserUpdate(schemas.BaseUserUpdate):
       - Опциональная роль
     """
     role: Optional[UserRole] = None
+    

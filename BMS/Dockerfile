@@ -1,5 +1,3 @@
-# Dockerfile
-
 FROM python:3.13-alpine
 
 ENV PYTHONDONTWRITEBYTECODE=1

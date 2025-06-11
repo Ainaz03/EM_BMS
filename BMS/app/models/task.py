@@ -54,13 +54,13 @@ class Task(Base):
         comment="Текущий статус задачи"
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime,
+        DateTime(timezone=True),
         default=datetime.utcnow,
         nullable=False,
         comment="Дата и время создания задачи"
     )
     deadline: Mapped[Optional[datetime]] = mapped_column(
-        DateTime,
+        DateTime(timezone=True),
         nullable=True,
         comment="Срок выполнения задачи"
     )
@@ -69,7 +69,6 @@ class Task(Base):
     creator_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey('users.id', ondelete='CASCADE'),
-        nullable=False,
         comment="ID пользователя, создавшего задачу"
     )
     creator: Mapped["User"] = relationship(
@@ -81,7 +80,6 @@ class Task(Base):
     assignee_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey('users.id', ondelete='SET NULL'),
-        nullable=False,
         comment="ID пользователя—исполнителя задачи"
     )
     assignee: Mapped["User"] = relationship(

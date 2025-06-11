@@ -29,7 +29,7 @@ class Evaluation(Base):
         comment="Баллы, выставленные за задачу (1–5)"
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime,
+        DateTime(timezone=True),
         default=datetime.utcnow,
         nullable=False,
         comment="Дата и время создания оценки"
@@ -52,7 +52,6 @@ class Evaluation(Base):
     evaluator_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey('users.id', ondelete='SET NULL'),
-        nullable=False,
         comment="ID пользователя, который выставил оценку"
     )
     evaluator: Mapped["User"] = relationship(

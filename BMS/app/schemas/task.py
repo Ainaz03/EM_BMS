@@ -35,6 +35,10 @@ class TaskBase(BaseModel):
         ...,
         description="ID пользователя—исполнителя задачи"
     )
+    status: TaskStatus = Field(
+        TaskStatus.OPEN,
+        description="Статус задачи (по умолчанию открыта)"
+    )
 
 
 class TaskCreate(TaskBase):

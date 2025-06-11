@@ -1,61 +1,20 @@
-# app/routers/calendar.py
-
-from datetime import datetime, date, time
+from datetime import datetime, date
 import calendar as pycal
-from typing import List
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import PlainTextResponse
-from sqlalchemy import select, and_, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
+from app.utils.services import get_meetings_for_date, get_tasks_for_date
 from app.core.database import get_async_session
 from app.core.auth import current_active_user
 from app.models.user import User
-from app.models.task import Task
-from app.models.meeting import Meeting
+
 
 router = APIRouter(prefix="/calendar", tags=["Календарь"])
 
-
-# ------------------------
-# Вспомогательные функции
-# ------------------------
-
-async def get_tasks_for_date(
-    db: AsyncSession, team_id: int, target: date
-) -> List[Task]:
-    stmt = (
-        select(Task)
-        .where(Task.deadline != None)
-        .where(func.date(Task.deadline) == target)
-    )
-    # Если у вас нет team_id прямо в Task, фильтруйте по assignee.team_id или creator.team_id
-    stmt = stmt.where(
-        (Task.assignee.has(team_id=team_id)) |
-        (Task.creator.has(team_id=team_id))
-    )
-    res = await db.execute(stmt)
-    return res.scalars().all()
-
-
-async def get_meetings_for_date(
-    db: AsyncSession, user_id: int, target: date
-) -> List[Meeting]:
-    stmt = (
-        select(Meeting)
-        .options(selectinload(Meeting.participants))
-        .where(func.date(Meeting.start_time) == target)
-        .join(Meeting.participants)
-        .where(Meeting.participants.any(id=user_id))
-    )
-    res = await db.execute(stmt)
-    return res.scalars().all()
-
-
-# ------------------------
+# -------------------------------------------------------------------
 # Эндпоинты
-# ------------------------
+# -------------------------------------------------------------------
 
 @router.get(
     "/daily/{target_date}",
@@ -70,7 +29,7 @@ async def daily_calendar(
     try:
         d = datetime.fromisoformat(target_date).date()
     except ValueError:
-        raise HTTPException(400, "Неверный формат даты, ожидается YYYY-MM-DD")
+        raise HTTPException(status_code=400, detail="Неверный формат даты, ожидается YYYY-MM-DD")
 
     if not current_user.team_id:
         return "Вы не состоите в команде."
@@ -78,17 +37,19 @@ async def daily_calendar(
     tasks = await get_tasks_for_date(db, current_user.team_id, d)
     meetings = await get_meetings_for_date(db, current_user.id, d)
 
-    # Формируем строки таблицы
-    lines = ["Время      | Тип     | Заголовок"]
-    lines.append("-" * 40)
+    lines = ["Время      | Тип     | Заголовок", "-" * 40]
+
     for t in sorted(tasks, key=lambda x: x.deadline or datetime.min):
         tm = t.deadline.time().strftime("%H:%M") if t.deadline else "--:--"
         lines.append(f"{tm:<10}| Задача  | {t.title}")
+
     for m in sorted(meetings, key=lambda x: x.start_time):
         tm = m.start_time.time().strftime("%H:%M")
         lines.append(f"{tm:<10}| Встреча| {m.title}")
+
     if len(lines) == 2:
         lines.append("Событий нет.")
+
     return "\n".join(lines)
 
 
@@ -104,17 +65,15 @@ async def monthly_calendar(
     db: AsyncSession = Depends(get_async_session),
 ):
     if not 1 <= month <= 12:
-        raise HTTPException(400, "Месяц должен быть от 1 до 12")
+        raise HTTPException(status_code=400, detail="Месяц должен быть от 1 до 12")
 
     if not current_user.team_id:
         return "Вы не состоите в команде."
 
-    # Подготовим шапку таблицы
     _, days_in_month = pycal.monthrange(year, month)
     header = "Дата       | Задач | Встреч"
     lines = [header, "-" * len(header)]
 
-    # Для каждого дня считаем задачи и встречи
     for day in range(1, days_in_month + 1):
         d = date(year, month, day)
         tasks = await get_tasks_for_date(db, current_user.team_id, d)

@@ -1,2 +1,1 @@
 CREATE DATABASE bms_db;
-CREATE DATABASE bms_test;

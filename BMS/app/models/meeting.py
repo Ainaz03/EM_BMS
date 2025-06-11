@@ -31,12 +31,12 @@ class Meeting(Base):
         comment="Тема или название встречи"
     )
     start_time: Mapped[datetime] = mapped_column(
-        DateTime,
+        DateTime(timezone=True),
         nullable=False,
         comment="Дата и время начала встречи"
     )
     end_time: Mapped[datetime] = mapped_column(
-        DateTime,
+        DateTime(timezone=True),
         nullable=False,
         comment="Дата и время окончания встречи"
     )
@@ -45,7 +45,6 @@ class Meeting(Base):
     creator_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey('users.id', ondelete='CASCADE'),
-        nullable=False,
         comment="ID пользователя, создавшего встречу"
     )
     creator: Mapped["User"] = relationship(

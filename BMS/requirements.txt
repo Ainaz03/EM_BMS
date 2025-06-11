@@ -23,11 +23,7 @@ python-jose[cryptography]==3.5.0      # :contentReference[oaicite:10]{index=10}
 sqladmin==0.20.1         # :contentReference[oaicite:11]{index=11}  
 jinja2==3.1.6            # :contentReference[oaicite:12]{index=12}  
 
-# Кеширование через Redis
-fastapi-cache2[redis]==0.2.2   # :contentReference[oaicite:14]{index=14}  
-
 # Загрузка переменных окружения
 python-dotenv==1.1.0     # :contentReference[oaicite:15]{index=15}  
-
 
 itsdangerous>=2.1
