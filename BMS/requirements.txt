@@ -1,29 +1,29 @@
 # Основной фреймворк и сервер
-fastapi==0.115.12           # :contentReference[oaicite:0]{index=0}  
-uvicorn[standard]==0.34.3   # :contentReference[oaicite:1]{index=1}  
+fastapi==0.115.12
+uvicorn[standard]==0.34.3
 
 # ORM и миграции
-sqlalchemy==2.0.41          # :contentReference[oaicite:2]{index=2}  
-alembic==1.16.1             # :contentReference[oaicite:3]{index=3}  
+sqlalchemy==2.0.41
+alembic==1.16.1
 
 # Драйверы БД
-psycopg2-binary==2.9.10     # :contentReference[oaicite:4]{index=4}  
-asyncpg==0.30.0             # :contentReference[oaicite:5]{index=5}  
+psycopg2-binary==2.9.10
+asyncpg==0.30.0
 
 # Валидация
-pydantic[email]==2.11.5     # :contentReference[oaicite:6]{index=6}  
-pydantic-settings==2.9.1    # :contentReference[oaicite:7]{index=7}  
+pydantic[email]==2.11.5
+pydantic-settings==2.9.1
 
 # Авторизация и пользователи
-fastapi-users[sqlalchemy]==14.0.1     # :contentReference[oaicite:8]{index=8}  
-passlib[bcrypt]==1.7.4                # :contentReference[oaicite:9]{index=9}  
-python-jose[cryptography]==3.5.0      # :contentReference[oaicite:10]{index=10}  
+fastapi-users[sqlalchemy]==14.0.1
+passlib[bcrypt]==1.7.4
+python-jose[cryptography]==3.5.0
 
 # Админ-панель
-sqladmin==0.20.1         # :contentReference[oaicite:11]{index=11}  
-jinja2==3.1.6            # :contentReference[oaicite:12]{index=12}  
+sqladmin==0.20.1
+jinja2==3.1.6
 
 # Загрузка переменных окружения
-python-dotenv==1.1.0     # :contentReference[oaicite:15]{index=15}  
+python-dotenv==1.1.0
 
 itsdangerous>=2.1
